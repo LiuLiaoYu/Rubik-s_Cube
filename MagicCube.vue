@@ -1,67 +1,87 @@
 <script lang="ts" setup>
-// import {  } from 'fs';
-import { watch, computed, ref } from 'vue'
-
-let colors = ["white", 'blue', 'orange', "yellow", "green", 'red',]
-
-let face_state = [1, 2, 3, 4, 5, 6].map(e => Array(9).fill(e))
 
 
-let bar = [[2, 5, 8], [6, 7, 8], [0, 3, 6], [0, 1, 2]]
-let bais = [[5, 4, 2, 1], [4, 5, 1, 2]]
+import { MagicCube } from './MagicCube'
+import { watch, computed, ref, Ref } from 'vue'
 
-let b_ = [4, 5, 1, 2]
-
-
-let rotate_face = ref(-1)
-
-// let is_moving_bar = computed(()=>{
-// 
-// })
-
-// watch(rotate_face, () => {
-    // setTimeout(() => {rotate_face.value = -1 }, 1000);
-// })
-
-function is_moving_bar(face: number, j: number) {
-    if (rotate_face.value == -1) return false
-    let idx = b_.map(e => (e + rotate_face.value) % 6).indexOf(face)
-    if (idx != -1 && bar[idx].indexOf(j) != -1) return true;
-    return false
-}
+const props = defineProps<{
+    colors?: string[]
+    cube?: Ref<MagicCube>
+    animated?: boolean
+}>()
 
 
+defineEmits<{
+    (e: 'click-at-face', face: number): void
+}>()
+
+
+let cube = props.cube ? props.cube : ref(new MagicCube())
+
+let bais = [[4, 5, 1, 2], [5, 4, 2, 1]]
+let bar: { [propName: number]: number[] } = { 4: [2, 5, 8], 5: [6, 7, 8], 1: [0, 3, 6], 2: [0, 1, 2] }
 let rotate_ = ['', 'x 90deg', 'y 90deg', 'z -90deg', 'x -90deg', 'y -90deg', 'z 90deg',]
 
 
-function processInput(evt: KeyboardEvent) {
+let rotate_face = ref(-1)
+// ! not so good
+
+function is_moving_bar(face: number, j: number) {
+    if (rotate_face.value == -1) return null
+    let idx = cube.value.nface.map(e => (e + rotate_face.value) % 6).indexOf(face)
+    if (idx != -1 && cube.value.bar[idx].indexOf(j) != -1) return ''
+    return null
+}
+
+/*
+function processInput(evt: KeyboardEvent) {// will changed
+    // console.log(evt)
     let r = evt.code.match(/(?:Digit|Numpad)(\d)/)
 
     if (r?.[1]) {
         let num = Number(r?.[1])
         if (num >= 0 && num < 6) {
             rotate_face.value = Number(r?.[1]);
+            if (!props.animated) cube.value.rotate(num, evt.shiftKey ? 0 : 1);
+
+            // await
         }
         // console.log(rotate_face.value)
     }
 }
 
+function fun(evt: TransitionEvent, num: number) {// will changed
+    console.log('done')
+    if (rotate_face.value != -1) {
+        rotate_face.value = -1
+        // evt.target.style.transition = "0ms"
+        // getComputedStyle(evt.target).length
+
+        cube.value.rotate(num, 1);
+    }
+}
+*/
 </script>
 
 
 <template>
-    <div class="magic-cube" @keyup="processInput($event)" tabindex="0">
+    <div class="magic-cube">
+        <!-- @keyup="processInput($event)" tabindex="0" -->
 
-        <div class="face" v-for="i in 6" :class="{ 'rotating': i - 1 == rotate_face }" :style="{ 'rotate': rotate_face == i - 1 ? rotate_[i] : '' }">
+        <div class="face" v-for="(_, i) in 6" :class="{ 'rotating': i == rotate_face }"
+             :style="{ 'rotate': rotate_face == i ? rotate_[i + 1] : '', transition: animated ? '500ms' : '0ms' }">
+            <!-- @transitionend="fun($event, i)" -->
 
-            <div class="side">
-                <div class="bar" v-for="j in 4">
-                    <div v-for="k in 3" :style="{ backgroundColor: colors[face_state[(i - 1 + bais[i % 2][j - 1]) % 6][bar[j - 1][k - 1]] - 1] }"></div>
+            <div class="side" v-if="animated">
+                <div class="bar" v-for="(_, j) in 4">
+                    <div v-for="k in 3"
+                         :style="{ backgroundColor: cube.colors[cube.state[(i + bais[i % 2][j]) % 6][bar[bais[i % 2][j]][i % 2 ? k - 1 : 3 - k]] - 1] }">
+                    </div>
                 </div>
             </div>
 
-            <div class="front" :class="{ 'invisiable': false }">
-                <div v-for="j in 9" :style="{ backgroundColor: colors[face_state[i - 1][j - 1] - 1] }" :class="{ 'invisiable': is_moving_bar(i - 1, j - 1) }">
+            <div class="front" @click="$emit('click-at-face', i)">
+                <div v-for="(_, j) in 9" :style="{ backgroundColor: cube.colors[cube.state[i][j] - 1] }" :hide="animated ? is_moving_bar(i, j) : null">
                 </div>
             </div>
 
@@ -71,31 +91,29 @@ function processInput(evt: KeyboardEvent) {
 </template>
 
 <style lang="scss">
-@import url('/animation.scss');
-
-.invisiable {
+[hide] {
     opacity: 0;
+}
+
+.magic-cube {
+    transform: rotateX(155deg) rotateZ(180deg) rotateY(-45deg);
+
+    // animation: wer 4s 0s infinite alternate;
+    // animation: rz 4s 0s infinite alternate;
 }
 
 .magic-cube {
     --cube-length: 300px;
     --cube-half-length: calc(var(--cube-length) / 2);
 
-    width: var(--cube-length);
-    height: var(--cube-length);
     transform-style: preserve-3d;
 
-    transition: 500ms;
-    // transform: rotateY(-45deg) rotateX(-45deg) rotateZ(-45deg);
-    transform: rotateX(155deg) rotateZ(180deg) rotateY(-45deg);
-    // transform: rotateY(0deg) rotateX(0deg);
-    // transform: rotateY(90deg) rotateX(0deg);
-    // transform: rotateY(180deg) rotateX(0deg);
-    // transform: rotateY(270deg) rotateZ(45deg);
-    // 
+    width: var(--cube-length);
+    height: var(--cube-length);
 
-    // animation: wer 4s 0s infinite alternate;
-    // animation: rz 4s 0s infinite alternate;
+    .face.rotating .side {
+        opacity: 1;
+    }
 
     .face {
         position: absolute;
@@ -104,110 +122,6 @@ function processInput(evt: KeyboardEvent) {
         width: var(--cube-length);
         height: var(--cube-length);
 
-        transition: 500ms;
-
-        @for $i from 1 to 7 {
-            &:nth-of-type(#{$i}) {
-                @if $i ==1 {
-                    transform: rotateY(90deg) translateZ(var(--cube-half-length));
-                }
-
-                @if $i==2 {
-                    transform: rotateX(-90deg) rotateZ(90deg) translateZ(var(--cube-half-length));
-                }
-
-                @if $i==3 {
-                    transform: rotateX(180deg) rotateZ(90deg) translateZ(var(--cube-half-length));
-                }
-
-                @if $i==4 {
-                    transform: rotateY(-90deg) rotateZ(-90deg) translateZ(var(--cube-half-length));
-                }
-
-                @if $i==5 {
-                    transform: rotateX(90deg) translateZ(var(--cube-half-length));
-                }
-
-                @if $i==6 {
-                    transform: rotateX(0) translateZ(var(--cube-half-length));
-                }
-
-                .front {
-                    @if $i%2==1 {
-                        grid-auto-flow: row;
-                        // border: 10px solid black;
-                    }
-
-                    @else {
-                        grid-auto-flow: column;
-                    }
-
-                    @for $j from 1 to 10 {
-                        :nth-child(#{$j}) {
-                            border-left: 1px solid black;
-                            border-bottom: 1px solid black;
-
-                            @if $i%2==1 {
-                                @if $j<4 {
-                                    border-top: 1px solid black;
-                                }
-
-                                @if $j % 3==0 {
-                                    border-right: 1px solid black;
-                                }
-                            }
-
-                            @else {
-                                @if $j % 3==1 {
-                                    border-top: 1px solid black;
-                                }
-
-                                @if $j>6 {
-                                    border-right: 1px solid black;
-                                }
-                            }
-
-                            // border: 1px solid black;
-                        }
-                    }
-
-                }
-
-                .side {
-                    .bar {
-                        div {
-                            @if $i%2==1 {
-                                border-top: 1px solid black;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // $faces: 1 2 3 4;
-        // 
-        // @each $i in $faces {
-        // &:nth-of-type(#{$i}) {
-        // opacity: 0;
-        // }
-        // }
-
-
-        // @for $i from 1 to 6 {
-        // .front:nth-of-type(#{$i}) {
-        // @if $i ==1 {
-        // grid-auto-flow: column;
-        // border: 1px red solid;
-        // border: 30px red solid;
-        // }
-        // @if $i == 2 {
-        // grid-auto-flow: row;
-        // }
-        // }
-        // }
-
-
         .front {
             width: 100%;
             height: 100%;
@@ -215,64 +129,90 @@ function processInput(evt: KeyboardEvent) {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(3, 1fr);
+
+            div {
+                border-left: 1px solid black;
+                border-bottom: 1px solid black;
+            }
         }
 
         .side {
+            --cube-third-length: calc(var(--cube-length) / 3);
+            --cube-sixth-length-neg: calc(var(--cube-third-length)/-2);
+
+            opacity: 0;
             position: absolute;
             transform-style: preserve-3d;
-            opacity: 0;
-
-            --cube-half-length: calc(var(--cube-length) / 2);
-            --cube-third-length: calc(var(--cube-length) / 3);
-
             top: var(--cube-third-length);
 
+            .bar {
+                display: grid;
+                position: absolute;
+                width: calc(var(--cube-length));
+                height: calc(var(--cube-third-length));
+                grid-template-columns: repeat(3, 1fr);
 
-            @for $i from 1 to 5 {
-                .bar:nth-of-type(#{$i}) {
-                    position: absolute;
-                    width: calc(var(--cube-length));
-                    height: calc(var(--cube-third-length));
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
+                div {
+                    border-bottom: 1px solid black;
+                    border-right: 1px solid black;
 
-                    div {
-                        border-bottom: 1px solid black;
-                        border-right: 1px solid black;
-
-                        &:nth-of-type(1) {
-                            border-left: 1px solid black;
-                        }
-                    }
-
-                    @if $i ==1 {
-                        transform: rotateX(90deg) translate3d(0, calc(var(--cube-third-length)/-2), var(--cube-half-length)); // rotateX(90deg) 
-                    }
-
-                    @if $i==2 {
-                        transform: rotateZ(-90deg) rotateX(90deg) translate3d(0, calc(var(--cube-third-length)/-2), var(--cube-half-length)); // rotateX(90deg) 
-                    }
-
-                    @if $i==3 {
-                        transform: rotateX(-90deg) rotateZ(180deg) translate3d(0, calc(var(--cube-third-length)/-2), var(--cube-half-length)); // rotateX(90deg) 
-                    }
-
-                    @if $i==4 {
-                        transform: rotateZ(90deg) rotateX(90deg) translate3d(0, calc(var(--cube-third-length)/-2), var(--cube-half-length)); // rotateX(90deg) 
+                    &:nth-of-type(1) {
+                        border-left: 1px solid black;
                     }
                 }
             }
-
-
-
         }
 
-        &.rotating {
-            .side {
-                opacity: 1;
+        $x: 0 -1 2 0 1 0;
+        $y: 1 0 0 -1 0 0;
+        $z: 0 1 1 -1 0 0;
+        $dir: row column;
+        $bt: 1 4 7 1 2 3;
+        $br: 7 8 9 3 6 9;
+
+        @for $i from 1 to 7 {
+            &:nth-of-type(#{$i}) {
+                transform: rotateX(#{nth($x, $i)*90}deg) rotateY(#{nth($y, $i)*90}deg) rotateZ(#{nth($z, $i)*90}deg) translateZ(var(--cube-half-length));
+
+                .front {
+                    grid-auto-flow: #{nth($dir, 2 - $i % 2)};
+
+                    @for $j from 1 to 4 {
+
+                        // ! not so good
+                        :nth-child(#{nth($bt, $j + ($i % 2) * 3)}) {
+                            border-top: 1px solid black;
+                        }
+
+                        :nth-child(#{nth($br, $j + ( $i % 2) * 3)}) {
+                            border-right: 1px solid black;
+                        }
+                    }
+                }
+
+                .side .bar div {
+                    @if $i%2==1 {
+                        // ! not so good
+                        border-top: 1px solid black;
+                    }
+                }
             }
         }
 
+        $sx: 1 1 -1 1;
+        $sz: 0 -1 2 1;
+
+        @for $i from 1 to 5 {
+            .side .bar:nth-of-type(#{$i}) {
+                @if $i%2 ==1 {
+                    transform: rotateX(#{nth($sx,$i)*90}deg) rotateZ(#{nth($sz,$i)*90}deg) translate3d(0, var(--cube-sixth-length-neg), var(--cube-half-length));
+                }
+
+                @if $i%2==0 {
+                    transform: rotateZ(#{nth($sz,$i)*90}deg) rotateX(#{nth($sx,$i)*90}deg) translate3d(0, var(--cube-sixth-length-neg), var(--cube-half-length));
+                }
+            }
+        }
     }
 
 }
