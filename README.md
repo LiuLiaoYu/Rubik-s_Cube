@@ -13,5 +13,8 @@ A simulation of Rubik's Cube with face state stored.
 
 
 future plan:
-- Visualize with PySide6 
-- A Web Edition
+- [ ] Visualize with PySide6 
+- [x] A Web Edition: https://liuliaoyu.github.io/Rubik-sCube
+- [ ] Matrix Representation
+- [ ] Classic Solution
+- [ ] Network Solution
